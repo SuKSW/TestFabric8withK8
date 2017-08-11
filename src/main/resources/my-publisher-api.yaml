@@ -1,0 +1,137 @@
+paths:
+  /endpoints/discoverable-services:
+    post:
+      consumes: "application/json"
+      produces: "application/json"
+      x-wso2-curl: "curl -k -H \"Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\" -H \"Content-Type: application/json\" -X POST -d @data.json \"https://127.0.0.1:9443/api/am/publisher/v1.0/endpoints/service-discovery\""
+      x-wso2-request: "POST https://127.0.0.1:9443/api/am/publisher/v1.0/endpoints/service-discovery\nAuthorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\nContent-Type: application/json\n\n{\n\"globalEndpointUrl\": \"https://195.172.91.121:8443/\"\n}"
+      x-wso2-response: "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\"count\":3,\"list\":[{\"serviceName\":\"publicNewsFeedService\",\"url\":\"http://195.172.91.131:31233\"},{\"serviceName\":\"aCommonlyUsedMailingService\",\"url\":\"http://195.172.91.132:31233\"},{\"serviceName\":\"aPrivateDBAccessingService\",\"url\":\"http://195.172.91.141:31133\"}]}"
+      security:
+        - OAuth2Security:
+          - apim:api_create
+      summary: Get the list of endpoints after Service discovery
+      description: |
+        This operation can be used to discover services using a given url of a existing cluster eg.Kubernetes.
+      parameters:
+        - $ref: '#/parameters/globalEndpoint'
+      tags:
+        - Endpoint (Collection)
+      responses:
+        200:
+          description: |
+            OK.
+            Successful response with the discovered services list as an entity in the body.
+          schema:
+            $ref: '#/definitions/DiscoveredServiceEndPointsList'
+          headers:
+            Content-Type:
+              description: |
+                The content type of the body.
+              type: string
+        400:
+          description: |
+            Bad Request.
+            Invalid request (or validation error)
+          schema:
+            $ref: '#/definitions/Error'
+        412:
+          description: |
+            Precondition Failed.
+            The request has not been performed because one of the preconditions is not met.
+          schema:
+            $ref: '#/definitions/Error'
+
+parameters:
+
+# Global Endpoint URL for service discovery
+# Specified as a value in json
+  globalEndpoint:
+    name: globalEndpoint
+    in: body
+    description: |
+      URL to discover services.
+    required: true
+    type: string
+
+
+definitions:
+
+#-----------------------------------------------------
+# The Discovered Services List resource
+#-----------------------------------------------------
+  DiscoveredServiceEndPointsList:
+    title: Discovered Service Endpoints List
+    properties:
+      count:
+        type: integer
+        description: |
+          Number of Service EndPoints returned.
+        example: 3
+      list:
+        type: array
+        items:
+          $ref: '#/definitions/DiscoveredServiceEndPoint'
+
+#-----------------------------------------------------
+# The Discovered Service Endpoint resource
+#-----------------------------------------------------
+  DiscoveredServiceEndPoint :
+      title: Discovered Service Endpoint
+      properties:
+        serviceName:
+          type: string
+          description: |
+            Name of the service. Here the same name can repeat with multiple URLs.
+          example: "publicNewsFeedService"
+        serviceUrl:
+          type: string
+          description: |
+            URL of the service
+          example: "http://195.172.91.131:31233\\"
+
+#-----------------------------------------------------
+# The Error resource
+#-----------------------------------------------------
+  Error:
+    title: Error object returned with 4XX HTTP lifeCycleStatus
+    required:
+      - code
+      - message
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
+        description: Error message.
+      description:
+        type: string
+        description: |
+          A detail description about the error message.
+      moreInfo:
+        type: string
+        description: |
+          Preferably an url with more details about the error.
+      error:
+        type: array
+        description: |
+          If there are more than one error list them out.
+          For example, list out validation errors by each field.
+        items:
+          $ref: '#/definitions/ErrorListItem'
+
+#-----------------------------------------------------
+# The Error List Item resource
+#-----------------------------------------------------
+  ErrorListItem:
+    title: Description of individual errors that may have occurred during a request.
+    required:
+      - code
+      - message
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+        description: |
+          Description about individual errors occurred
