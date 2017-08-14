@@ -1,3 +1,5 @@
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import io.fabric8.kubernetes.api.model.ServiceList;
 
 import java.net.MalformedURLException;
@@ -10,24 +12,23 @@ import java.util.HashMap;
 public abstract class ServiceDiscovery {
 
     protected String globalEndpoint;
-    protected HashMap<String, URL> services;
-    //ifServiceSSL protocol = "https://";
+    protected Multimap<String, URL> servicesMultimap;
 
     ServiceDiscovery(String globalEndpoint){
-        this.services = new HashMap<String, URL>();
+        this.servicesMultimap = ArrayListMultimap.create();
         this.globalEndpoint = globalEndpoint;
     }
-    HashMap<String, URL> listServices() throws MalformedURLException{
-        return this.services;
+    Multimap<String, URL> listServices() throws MalformedURLException{
+        return this.servicesMultimap;
     }
-    HashMap<String, URL> listServices(String namesapce) throws MalformedURLException{
-        return this.services;
+    Multimap<String, URL> listServices(String namesapce) throws MalformedURLException{
+        return this.servicesMultimap;
     }
-    HashMap<String, URL> listServices(String namesapce, HashMap<String, String> criteria) throws MalformedURLException{
-        return this.services;
+    Multimap<String, URL> listServices(String namesapce, HashMap<String, String> criteria) throws MalformedURLException{
+        return this.servicesMultimap;
     }
-    HashMap<String, URL> listServices(HashMap<String, String> criteria) throws MalformedURLException{
-        return this.services;
+    Multimap<String, URL> listServices(HashMap<String, String> criteria) throws MalformedURLException{
+        return this.servicesMultimap;
     }
 
     protected void servicesToHashMap(ServiceList services, String namespace) throws MalformedURLException{}
