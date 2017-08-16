@@ -11,22 +11,22 @@ import java.util.Map;
 public class Main {
 
 
-    public static void main(String[] args) throws MalformedURLException {
-        String master = "https://..../";
+    public static void main(String[] args) throws Exception {
 
+        String master = "https://........:8443/";
 //        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master);
         KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
                  KubernetesServiceDiscovery.ServiceType.CLUSTERIP);
+//        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
+//                KubernetesServiceDiscovery.ServiceType.NODEPORT);
+//        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
+//                KubernetesServiceDiscovery.ServiceType.LOADBALANCER);
+//        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
+//                KubernetesServiceDiscovery.ServiceType.EXTERNALNAME);
 
-       /* KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
-                KubernetesServiceDiscovery.ServiceType.NODEPORT);
-        */
-        /*KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
-                KubernetesServiceDiscovery.ServiceType.LOADBALANCER);
-        */
-         /*KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
-                KubernetesServiceDiscovery.ServiceType.EXTERNALNAME);*/
+        //Multimap<String,URL> servicesMultimap = kubernetesServiceDiscovery.listServices("default");
         Multimap<String,URL> servicesMultimap = kubernetesServiceDiscovery.listServices("default");
+
         System.out.println();
         System.out.println();
 

@@ -14,6 +14,8 @@ import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.openshift.client.DefaultOpenShiftClient;
+import io.fabric8.openshift.client.OpenShiftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +53,8 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
     * */
     private static final Logger log = LoggerFactory.getLogger(KubernetesServiceDiscovery.class);
 
-    private KubernetesClient client;
+    private OpenShiftClient client;
+    //private KubernetesClient client;
     private ServiceType serviceType;
 
     private static ServiceType defaultServiceType = ServiceType.LOADBALANCER;
@@ -63,22 +66,39 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
     }
 
 
-    KubernetesServiceDiscovery(String globalEndpoint){
+    KubernetesServiceDiscovery(String globalEndpoint) throws Exception {
         super(globalEndpoint);
         Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).build();
         try {
-            this.client = new DefaultKubernetesClient(config);
+            this.client = new DefaultOpenShiftClient(config);
+            //this.client = new DefaultKubernetesClient(config);
             this.serviceType = defaultServiceType;
         } catch (KubernetesClientException e) {
             e.printStackTrace();
         }
     }
 
-    KubernetesServiceDiscovery(String globalEndpoint, ServiceType serviceType){
+    KubernetesServiceDiscovery(String globalEndpoint, ServiceType serviceType) throws Exception {
         super(globalEndpoint);
-        Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).build();
+        System.setProperty("kubernetes.auth.tryKubeConfig", "false");
+        System.setProperty("kubernetes.auth.tryServiceAccount", "true");
+
+        //Using token - works
+        //Can list services from any namespace since a cluster role was given
+        Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).withTrustCerts(true).withClientCertFile(System.getProperty("user.dir")+"/src/main/resources/ca.crt").withOauthToken("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJteXByb2plY3QiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlY3JldC5uYW1lIjoic2VyZGktdG9rZW4tY3BkZnYiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoic2VyZGkiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI1NzgxNzkwMy04MjM0LTExZTctOWU2Zi1iYTI2YjVlYTlhODkiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6bXlwcm9qZWN0OnNlcmRpIn0.JopXXkRhTeqWNN6yBosJhaxs2nU9uCZBW_ttnxSYz3pM93AcNAIGvLcrtmbrmEO6nlxvPK-s_qfXk2oJESJNm7Sje-7jvhgwGQdBizy06AlM3AM5cr2L7ap6ri7OQX-B4yvFyIAAIDMC4rifiYijXClV2JPo6S_gXHfwV7kOlJI3KjDwyWEwOjgXMK00ewJ1Xnd-rpTJgvqJPuEer2hbXRZrp2JoMa-fzv219c7l3LuVx7ojLo9ElY9iDbox8VvV1lBRxMJuitC2L8aE0m_jtSAC5Bum9zaOms2OK4T6uyr6HhfpPgLcZoWX1wpAXAOfsmoS2BPA3Ar1LXflT5SLbA").build();
+
+        //Without token - does not work.
+        //"Message: User "system:anonymous" cannot list services in project "myproject"."
+        //Here the project name came from the namespace given in the main method
+        //cert is the ca cert from .minikube
+        //Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).withTrustCerts(true).withClientCertFile(System.getProperty("user.dir")+"/src/main/resources/ca.crt").build();
+
+        //works when system property "kubernetes.auth.tryKubeConfig" set to true
+        //Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).build();
+
         try {
-            this.client = new DefaultKubernetesClient(config);
+            this.client = new DefaultOpenShiftClient(config);
+            //this.client = new DefaultKubernetesClient(config);
             this.serviceType = serviceType;
         } catch (KubernetesClientException e) {
             e.printStackTrace();
@@ -124,8 +144,7 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
                         for (ServicePort servicePort : service.getSpec().getPorts()) {
                             String protocol = servicePort.getName();
                             if (protocol !=null && (protocol.equals("http")
-                                    || protocol.equals("https") || protocol.equals("ftp")
-                                    || protocol.equals("dns") || protocol.equals("irc"))) {
+                                    || protocol.equals("https") || protocol.equals("ftp") || protocol.equals("irc"))) {
                                 URL serviceURL = new URL(protocol, service.getSpec().getClusterIP(), servicePort.getPort(), "");
                                 this.servicesMultimap.put(service.getMetadata().getName(), serviceURL);
                             }
@@ -147,7 +166,7 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
                         LoadBalancerStatus loadBalancerStatus = service.getStatus().getLoadBalancer();
                         Iterator<LoadBalancerIngress> ingressIterator = loadBalancerStatus.getIngress().iterator();
                         if (ingressIterator.hasNext()) {
-                            while (ingressIterator.hasNext()) {//Todo: maybe this also uses the service ports
+                            while (ingressIterator.hasNext()) {//Todo: this also uses the service ports
                                 URL serviceURL = new URL(loadBalancerDefaultProtocol+"://"+ingressIterator.next().getIp());
                                 this.servicesMultimap.put(service.getMetadata().getName(), serviceURL);
                             }
@@ -157,7 +176,7 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
                 break;
             case EXTERNALNAME:
                 for (Service service : serviceItems) {
-                    if (service.getSpec().getType().equals("ExternalName")) {//Todo: maybe this also uses the service ports
+                    if (service.getSpec().getType().equals("ExternalName")) {
                         String externalName = (String) service.getSpec().getAdditionalProperties().get("externalName");
                         URL serviceURL = new URL(externalNameDefaultProtocol + "://" + externalName);
                         this.servicesMultimap.put(service.getMetadata().getName(), serviceURL);
@@ -181,8 +200,7 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
         URL url;
         String protocol = servicePort.getName();    //kubernetes gives only tcp/udp but we need http/https
         if(protocol==null || (!protocol.equals("http")
-                && !protocol.equals("https") && !protocol.equals("ftp")
-                && !protocol.equals("dns") && !protocol.equals("irc"))){
+                && !protocol.equals("https") && !protocol.equals("ftp") && !protocol.equals("irc"))){
             return null;
         }
         if(namespace==null){
@@ -242,8 +260,5 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
             return null;
         }
     }
-
-
-
 
 }

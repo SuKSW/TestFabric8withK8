@@ -1,0 +1,9 @@
+kind: ClusterRole
+apiVersion: v1
+metadata:
+  name: kube-ser-disc
+rules:
+- resources: ["services", "pods", "endpoints"]
+  verbs: ["get", "watch", "list"]
+
+#oc adm policy add-cluster-role-to-user kube-ser-disc system:serviceaccount:myproject:my-service-discovery -n myproject
