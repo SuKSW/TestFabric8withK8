@@ -1,0 +1,9 @@
+mvn clean
+mvn install
+java -jar target/ServiceDiscWithFabric-1-jar-with-dependencies.jar
+
+
+mvn clean
+mvn install
+docker build -f Dockerfile -t sdimage .
+docker run -p 8080:8080 -t sdimage
