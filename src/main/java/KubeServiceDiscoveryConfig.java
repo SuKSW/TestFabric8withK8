@@ -11,7 +11,7 @@ public class KubeServiceDiscoveryConfig {
 
     private static String externalNameDefaultProtocol = "http";
 
-    public Boolean getInsidePod() {
+    public Boolean isInsidePod() {
         return insidePod;
     }
 

@@ -1,5 +1,8 @@
 
 import com.google.common.collect.Multimap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.impl.SimpleLogger;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -8,24 +11,25 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+
 public class Main {
 
 
     public static void main(String[] args) throws Exception {
+        System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "DEBUG");
 
-        String master = "https://........:8443/";
+        String master = "https://....:8443/";
 //        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master);
-        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
-                 KubernetesServiceDiscovery.ServiceType.CLUSTERIP);
 //        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
-//                KubernetesServiceDiscovery.ServiceType.NODEPORT);
+//                 KubernetesServiceDiscovery.ServiceType.CLUSTERIP);
+        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
+                KubernetesServiceDiscovery.ServiceType.NODEPORT);
 //        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
 //                KubernetesServiceDiscovery.ServiceType.LOADBALANCER);
 //        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
 //                KubernetesServiceDiscovery.ServiceType.EXTERNALNAME);
 
-        //Multimap<String,URL> servicesMultimap = kubernetesServiceDiscovery.listServices("default");
-        Multimap<String,URL> servicesMultimap = kubernetesServiceDiscovery.listServices("default");
+        Multimap<String,URL> servicesMultimap = kubernetesServiceDiscovery.listServices();
 
         System.out.println();
         System.out.println();
@@ -33,14 +37,6 @@ public class Main {
         for(Map.Entry<String,URL> pair: servicesMultimap.entries()){
             System.out.println(pair.getKey() + "  =  " + pair.getValue());
         }
-
-        //Test1 t1 = new Test1("https://..../");
-        //t1.justPrint();
-        //t1.useServiceClass1("default");
-        //t1.useServiceClass();
-
-        //URL ulr = new URL("tcp",".....",8443,"/");
-        //t1.jp(ulr);
 
     }
 
