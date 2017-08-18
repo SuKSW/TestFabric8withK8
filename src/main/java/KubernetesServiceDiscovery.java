@@ -89,6 +89,8 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
             this.serviceType = serviceType;
         } catch (KubernetesClientException e) {
             e.printStackTrace();
+        } catch (NullPointerException e){//endpoint not specified
+            e.printStackTrace();
         }
     }
 
