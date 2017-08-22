@@ -22,8 +22,11 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.impl.SimpleLogger;
 
 import javax.xml.ws.Endpoint;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -99,7 +102,13 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
         if(kubeServDiscConfig.isInsidePod()){
             System.setProperty("kubernetes.auth.tryKubeConfig", "false");
             System.setProperty("kubernetes.auth.tryServiceAccount", "true");
-            Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).withTrustCerts(true).withClientCertFile(kubeServDiscConfig.getClientCertLocation()).withOauthToken(kubeServDiscConfig.getServiceAccountToken()).build();
+            Config config = null;
+            try {
+                config = new ConfigBuilder().withMasterUrl(globalEndpoint).withTrustCerts(true).withClientCertFile(kubeServDiscConfig.getClientCertLocation()).withOauthToken(new String(Files.readAllBytes(Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/token")))).build();
+            } catch (IOException e) {
+                log.error("Token file not found");
+                e.printStackTrace();
+            }
             return config;
         }else{
             System.setProperty("kubernetes.auth.tryKubeConfig", "false");

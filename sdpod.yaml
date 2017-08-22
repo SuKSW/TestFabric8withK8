@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: sd-test
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: test-sd
+    spec:
+      containers:
+      - name: sdimage
+        image: 172.30.62.29:5000/test2/sd-in-pod-image
+        ports:
+        - containerPort: 80
+      serviceAccount: my-service-discovery

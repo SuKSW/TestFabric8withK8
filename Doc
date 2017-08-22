@@ -1,9 +1,176 @@
+
+Running the application locally
+=========================================================================================
+
+to create and run the simple jar with dependencies
+----------------------------------------------------- 
 mvn clean
 mvn install
 java -jar target/ServiceDiscWithFabric-1-jar-with-dependencies.jar
 
 
+to create and run the docker image
+---------------------------------------
 mvn clean
 mvn install
 docker build -f Dockerfile -t sdimage .
 docker run -p 8080:8080 -t sdimage
+
+
+				Creating the pod
+=========================================================================================
+- Set the environment...............................................(Docker will also trust minishift certs)
+
+- Create the services including a service to expose this app .......(Previously created services disappears after setting env)
+
+- Create a service account..........................................(Only our app/service uses this)
+- Get the token(if hardcoding)
+
+- Create a cluster-role.............................................(Giving the app permissions)
+- Add the cluster role to the service account
+
+- Create user (during any password mode)............................(Only to push image from local docker to openshift registry)
+- Create project
+- Add cluster role system:image-pusher to user
+- Get the token of the prepared user
+
+- Build image.......................................................(Build,Tag within local docker. Then push to openshift)
+- Tag the image
+- Login to the openshift docker-registry
+- Push the image
+
+- Create the pods...................................................(Finally)
+- Expose the service (if needed)
+- Get the url
+- Run the service
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+								      Set the environment
+-----------------------------------------------------------------------------------------
+minishift docker-env
+eval $(minishift docker-env)
+
+
+			       Create the services including a service to expose this app
+-----------------------------------------------------------------------------------------
+oc create -f sd-svc.yaml
+
+
+								Create a service account
+-----------------------------------------------------------------------------------------
+oc create -f sdsa.json
+
+
+							     Get the token(if hardcoding)
+-----------------------------------------------------------------------------------------
+oc sa get-token my-service-discovery
+
+
+								    Create a cluster-role
+-----------------------------------------------------------------------------------------
+oc create -f cl-role.yaml
+
+
+					     Add the cluster role to the service account 
+-----------------------------------------------------------------------------------------
+(say the service account was of project myproject, then)
+oc adm policy add-cluster-role-to-user kube-ser-disc system:serviceaccount:myproject:my-service-discovery -n myproject
+
+
+						  Create user (during any password mode)
+----------------------------------------------------------------------------------------
+oc login -u sd-user -p abcd
+
+									  Create project
+----------------------------------------------------------------------------------------
+oc new-project sd-test
+
+					    Add cluster role system:image-pusher to user
+----------------------------------------------------------------------------------------
+oc login -u system:admin
+oc adm policy add-cluster-role-to-user system:image-pusher sd-user -n sd-test
+
+[Alternatively, to use an existing project rather than the new sd-test project,
+oc login -u system:admin
+oc adm policy add-role-to-user admin sd-user -n the-existing-project
+oc adm policy add-cluster-role-to-user system:image-pusher sd-user -n the-existing-project]
+
+
+
+						      Get the token of the prepared user
+-----------------------------------------------------------------------------------------
+get the token using "oc whoami -t" after logging in to "sd-user"
+oc login -u sd-user -p abcd
+oc whoami -t
+(say the token is qUD2NMT-uW--j9Q2gjqCDh8dFcS0FhsM9IyQjzLu1Dg)
+									     Build image
+-----------------------------------------------------------------------------------------
+mvn clean
+mvn install
+docker build -f Dockerfile -t sdimage .
+
+
+									   Tag the image
+-----------------------------------------------------------------------------------------
+(First get the cluster ip/port of the openshift docker-registry,)
+oc get svc -n default | grep registry
+
+(say it was :172.30.62.29:5000)
+docker tag sdimage 172.30.62.29:5000/sd-test/sdimage
+
+						  Login to the openshift docker-registry
+----------------------------------------------------------------------------------------
+(Login to the docker-registry 
+as the image-pusher user sd-user 
+with its token qUD2NMT-uW--j9Q2gjqCDh8dFcS0FhsM9IyQjzLu1Dg
+via docker)
+
+docker login -p qUD2NMT-uW--j9Q2gjqCDh8dFcS0FhsM9IyQjzLu1Dg -u unused 172.30.62.29:5000
+
+
+									 Push the image
+----------------------------------------------------------------------------------------
+docker push 172.30.62.29:5000/test2/sdimage
+
+									Create the pods
+----------------------------------------------------------------------------------------
+(create a replication controller
+where the service account is my-service-discovery which we created)
+
+oc create -f sdpod.yaml
+
+					  	Expose a route to the service (if needed)
+----------------------------------------------------------------------------------------
+oc expose svc/sd-svc
+
+									     Get the url
+----------------------------------------------------------------------------------------
+Minishift openshift service sd-svc
+	or
+oc get routes
+
+									 Run the service
+----------------------------------------------------------------------------------------
+(Right click on the url and open link)
+(Since this program uses System.out.print() to give the output)
+oc logs <podname>
+
+
+
+************************************ The End :) ******************************************
+
+
+Other,
+							 Build and tag the docker image
+----------------------------------------------------------------------------------------
+mvn clean
+mvn install
+docker build -f Dockerfile -t sd-in-pod-image .
+docker tag sd-in-pod-image 172.30.62.29:5000/test2/sd-in-pod-image
+
+
+
+
+
+
