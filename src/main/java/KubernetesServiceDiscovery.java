@@ -2,7 +2,6 @@ import io.fabric8.kubernetes.api.model.EndpointAddress;
 import io.fabric8.kubernetes.api.model.EndpointSubset;
 import io.fabric8.kubernetes.api.model.Endpoints;
 import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
-import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceList;
@@ -18,14 +17,12 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.ws.Endpoint;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 
 
@@ -273,81 +270,65 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
                                                ServicePort servicePort) throws MalformedURLException {
         URL url;
         String protocol = servicePort.getName();    //kubernetes gives only tcp/udp but we need http/https
-        if(filerNamespace==null){
-            int nodePort = servicePort.getNodePort();
-            //Below, method ".inAnyNamespace()" did not support ".withName()". Therefore ".withField()" is used.
-            //It returns a single item list which has the only endpoint created for the service.
-            Endpoints endpoint = client.endpoints().inAnyNamespace()
-                    .withField("metadata.name",serviceName).list().getItems().get(0);
-            List<EndpointSubset> endpointSubsets = endpoint.getSubsets();
-            if (endpointSubsets.isEmpty()) {
-                if(log.isDebugEnabled()){
-                    log.debug("Service:"+serviceName
-                            +"  no endpoints found for the service. EndpointSubset list is empty");
-                }
-                return null;
-            }
-            int endpointSubsetIndex = 0;
-            for (EndpointSubset endpointSubset : endpointSubsets) {
-                endpointSubsetIndex++;
-                List<EndpointAddress> endpointAddresses = endpointSubset.getAddresses();
-                if (endpointAddresses.isEmpty()) {  //no endpoints for the service
-                    if(log.isDebugEnabled()){
-                        log.debug("Service:"+serviceName+" EndpointSubsetIndex:"+endpointSubsetIndex
-                                +"  no endpoints found for the service. EndpointAddress array is empty.");
-                    }
-                    return null;
-                }
-                for (EndpointAddress endpointAddress : endpointAddresses) {
-                    String podname = endpointAddress.getTargetRef().getName();
-                    Pod pod = client.pods().inAnyNamespace()
-                            .withField("metadata.name",podname).list().getItems().get(0);
-                    try {
-                        url = new URL(protocol, pod.getStatus().getHostIP(), nodePort, "");
-                        return url;
-                    } catch (NullPointerException e) { //no pods available for this address
-                        if(log.isDebugEnabled()){
-                            log.debug("Service:"+serviceName +"  Pod "+podname+"  not available");
-                        }
-                    }
-                }
-            }
-            return null;
-        } else {    // namespace given
-            int portNumber = servicePort.getNodePort();
-            Endpoints endpoint = client.endpoints().inNamespace(filerNamespace).withName(serviceName).get();
-            List<EndpointSubset> endpointSubsets = endpoint.getSubsets();
-            if (endpointSubsets.isEmpty()) {  //no endpoints for the service
-                if(log.isDebugEnabled()){
-                    log.debug("Service:"+serviceName+"  no endpoints found for the service. EndpointSubset list is empty");
-                }
-                return null;
-            }
-            for (EndpointSubset endpointSubset : endpointSubsets) {
-                List<EndpointAddress> endpointAddresses = endpointSubset.getAddresses();
-                if (endpointAddresses.isEmpty()) {  //no endpoints for the service
-                    if(log.isDebugEnabled()){
-                        log.debug("Service:"+serviceName+"  no endpoints found for the service. EndpointAddress list is empty.");
-                    }
-                    return null;
-                }
-                for (EndpointAddress endpointAddress : endpointAddresses) {
-                    String podname = endpointAddress.getTargetRef().getName();
-                    Pod pod = client.pods().inNamespace(filerNamespace).withName(podname).get();
-                    try {
-                        url = new URL(protocol, pod.getStatus().getHostIP(), portNumber, "");
-                        return url;
-                    } catch (NullPointerException e) { //no pods available for this address
-                        if(log.isDebugEnabled()){
-                            log.debug("Service:"+serviceName+"  no pod available for the service");
-                        }
-                    }
-                }
+        int nodePort = servicePort.getNodePort();
+        Endpoints endpoint = findEndpoint(filerNamespace,serviceName);
+        List<EndpointSubset> endpointSubsets = endpoint.getSubsets();
+        if (endpointSubsets.isEmpty()) {
+            if(log.isDebugEnabled()){
+                log.debug("Service:"+serviceName
+                        +"  no endpoints found for the service. EndpointSubset array is empty");
             }
             return null;
         }
+        int endpointSubsetIndex = 0;
+        for (EndpointSubset endpointSubset : endpointSubsets) {
+            endpointSubsetIndex++;
+            List<EndpointAddress> endpointAddresses = endpointSubset.getAddresses();
+            if (endpointAddresses.isEmpty()) {  //no endpoints for the service
+                if(log.isDebugEnabled()){
+                    log.debug("Service:"+serviceName+" EndpointSubsetIndex:"+endpointSubsetIndex
+                            +"  no endpoints found for the service. EndpointAddress array is empty.");
+                }
+                return null;
+            }
+            for (EndpointAddress endpointAddress : endpointAddresses) {
+                String podName = endpointAddress.getTargetRef().getName();
+                Pod pod = findPod(filerNamespace,podName);
+                try {
+                    url = new URL(protocol, pod.getStatus().getHostIP(), nodePort, "");
+                    return url;
+                } catch (NullPointerException e) { //no pods available for this address
+                    if(log.isDebugEnabled()){
+                        log.debug("Service:"+serviceName +"  Pod "+podName+"  not available");
+                    }
+                }
+            }
+        }
+        return null;
     }
 
+    private Endpoints findEndpoint(String filerNamespace, String serviceName){
+        Endpoints endpoint;
+        if(filerNamespace==null){
+            //Below, method ".inAnyNamespace()" did not support ".withName()". Therefore ".withField()" is used.
+            //It returns a single item list which has the only endpoint created for the service.
+            endpoint = client.endpoints().inAnyNamespace()
+                    .withField("metadata.name",serviceName).list().getItems().get(0);
+        }else {
+            endpoint = client.endpoints().inNamespace(filerNamespace).withName(serviceName).get();
+        }
+        return endpoint;
+    }
 
+    private Pod findPod(String filerNamespace, String podName){
+        Pod pod;
+        if(filerNamespace==null){
+            pod = client.pods().inAnyNamespace()
+                    .withField("metadata.name",podName).list().getItems().get(0);
+        }else {
+            pod = client.pods().inNamespace(filerNamespace).withName(podName).get();
+        }
+        return pod;
+    }
 
 }
