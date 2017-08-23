@@ -11,19 +11,19 @@ public class KubeServiceDiscoveryConfig {
 
     private static String externalNameDefaultProtocol = "http";
 
-    public Boolean isInsidePod() {
+    Boolean isInsidePod() {
         return insidePod;
     }
 
-    public String getClientCertLocation() {
+    String getClientCertLocation() {
         return clientCertLocation;
     }
 
-    public String getServiceAccountToken() {
+    String getServiceAccountToken() {
         return serviceAccountToken;
     }
 
-    public static String getExternalNameDefaultProtocol() {
+    static String getExternalNameDefaultProtocol() {
         return externalNameDefaultProtocol;
     }
 }

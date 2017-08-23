@@ -1,5 +1,5 @@
 
-Running the application locally
+			Running the application locally
 =========================================================================================
 
 to create and run the simple jar with dependencies
@@ -170,6 +170,18 @@ docker build -f Dockerfile -t sd-in-pod-image .
 docker tag sd-in-pod-image 172.30.62.29:5000/test2/sd-in-pod-image
 
 
+
+							      While building the config, 
+                               in method buildConfig in class KubernetesServiceDiscovery
+----------------------------------------------------------------------------------------
+Without token - does not work.
+"Message: User "system:anonymous" cannot list services in project "myproject"."
+Here the project name came from the namespace given in the main method
+cert is the ca cert from .minikube
+==> Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).withTrustCerts(true).withClientCertFile(kubeServDiscConfig.getClientCertLocation()).build();
+
+works when system property "kubernetes.auth.tryKubeConfig" set to true
+==> Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).build();
 
 
 

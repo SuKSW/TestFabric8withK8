@@ -26,7 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 
 
-public class KubernetesServiceDiscovery extends ServiceDiscovery {
+class KubernetesServiceDiscovery extends ServiceDiscovery {
     /*
     *----------------------------------------------------------------
     * For service type "A", the url ip retrieved will also be
@@ -69,8 +69,8 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
     KubernetesServiceDiscovery(String globalEndpoint) throws Exception {
         super(globalEndpoint);
         try {
-            this.client = new DefaultOpenShiftClient(buildConfig(globalEndpoint));
-            //this.client = new DefaultKubernetesClient(buildConfig(globalEndpoint));
+            this.client = new DefaultOpenShiftClient(buildConfig(this.globalEndpoint));
+            //this.client = new DefaultKubernetesClient(buildConfig(this.globalEndpoint));
             this.serviceType = defaultServiceType;
         } catch (KubernetesClientException e) {
             e.printStackTrace();
@@ -81,12 +81,10 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
     KubernetesServiceDiscovery(String globalEndpoint, ServiceType serviceType) throws Exception {
         super(globalEndpoint);
         try {
-            this.client = new DefaultOpenShiftClient(buildConfig(globalEndpoint));
-            //this.client = new DefaultKubernetesClient(buildConfig(globalEndpoint));
+            this.client = new DefaultOpenShiftClient(buildConfig(this.globalEndpoint));
+            //this.client = new DefaultKubernetesClient(buildConfig(this.globalEndpoint));
             this.serviceType = serviceType;
         } catch (KubernetesClientException e) {
-            e.printStackTrace();
-        } catch (NullPointerException e){//endpoint not specified
             e.printStackTrace();
         }
     }
@@ -95,30 +93,18 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
         kubeServDiscConfig = new KubeServiceDiscoveryConfig();
         System.setProperty("kubernetes.auth.tryKubeConfig", "false");
         System.setProperty("kubernetes.auth.tryServiceAccount", "true");
+        Config config = null;
         if(kubeServDiscConfig.isInsidePod()){
-            Config config = null;
             try {
                 config = new ConfigBuilder().withMasterUrl(globalEndpoint).withTrustCerts(true).withClientCertFile(kubeServDiscConfig.getClientCertLocation()).withOauthToken(new String(Files.readAllBytes(Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/token")))).build();
             } catch (IOException e) {
                 log.error("Token file not found");
                 e.printStackTrace();
             }
-            return config;
         }else{
-            //Using token - works
-            //Can list services from any namespace since a cluster role was given
-            Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).withTrustCerts(true).withClientCertFile(kubeServDiscConfig.getClientCertLocation()).withOauthToken(kubeServDiscConfig.getServiceAccountToken()).build();
-
-            //Without token - does not work.
-            //"Message: User "system:anonymous" cannot list services in project "myproject"."
-            //Here the project name came from the namespace given in the main method
-            //cert is the ca cert from .minikube
-            //Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).withTrustCerts(true).withClientCertFile(kubeServDiscConfig.getClientCertLocation()).build();
-
-            //works when system property "kubernetes.auth.tryKubeConfig" set to true
-            //Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).build();
-            return config;
+            config = new ConfigBuilder().withMasterUrl(globalEndpoint).withTrustCerts(true).withClientCertFile(kubeServDiscConfig.getClientCertLocation()).withOauthToken(kubeServDiscConfig.getServiceAccountToken()).build();
         }
+        return config;
     }
 
 
@@ -172,7 +158,7 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
 
 
 
-    protected void addServicesToJson(ServiceList services, String filerNamespace) throws MalformedURLException {
+    private void addServicesToJson(ServiceList services, String filerNamespace) throws MalformedURLException {
         JSONArray servicesJsonArray = new JSONArray();
         List<Service> serviceItems = services.getItems();
         for (Service service : serviceItems) {

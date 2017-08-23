@@ -7,10 +7,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 
-/**
- * Created by subhashinie on 7/28/17.
- */
-public abstract class ServiceDiscovery {
+abstract class ServiceDiscovery {
 
     protected String globalEndpoint;
     protected JSONObject servicesJson;
