@@ -9,11 +9,11 @@ import java.util.HashMap;
 
 abstract class ServiceDiscovery {
 
-    protected String globalEndpoint;
+    protected URL masterUrl;
     protected JSONObject servicesJson;
 
-    ServiceDiscovery(String globalEndpoint){
-        this.globalEndpoint = globalEndpoint;
+    ServiceDiscovery(URL masterUrl){
+        this.masterUrl = masterUrl;
     }
     JSONObject listServices() throws MalformedURLException{
         return this.servicesJson;

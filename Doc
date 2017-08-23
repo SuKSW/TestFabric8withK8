@@ -21,7 +21,7 @@ docker run -p 8080:8080 -t sdimage
 =========================================================================================
 - Set the environment...............................................(Docker will also trust minishift certs)
 
-- Create the services including a service to expose this app .......(Previously created services disappears after setting env)
+- Create the services including a service to expose this app .......(Previously created services disappears from minishift after setting env)
 
 - Create a service account..........................................(Only our app/service uses this)
 - Get the token(if hardcoding)
@@ -162,6 +162,12 @@ oc logs <podname>
 
 
 Other,
+
+							         Subsets in an endpoint
+----------------------------------------------------------------------------------------
+In a subset, a set of addresses has its own set of ports 
+
+
 							 Build and tag the docker image
 ----------------------------------------------------------------------------------------
 mvn clean

@@ -1,5 +1,6 @@
 
 import com.google.common.collect.Multimap;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.impl.SimpleLogger;
@@ -18,25 +19,18 @@ public class Main {
     public static void main(String[] args) throws Exception {
         System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "DEBUG");
 
-        String master = "https://....:8443/";
-//        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master);
-//        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
-//                 KubernetesServiceDiscovery.ServiceType.CLUSTERIP);
-        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
-                KubernetesServiceDiscovery.ServiceType.NODEPORT);
-//        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
-//                KubernetesServiceDiscovery.ServiceType.LOADBALANCER);
-//        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(master,
-//                KubernetesServiceDiscovery.ServiceType.EXTERNALNAME);
+        URL masterUrl = new URL("https","....", 8443,"/" );
+        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(masterUrl,
+                 KubernetesServiceDiscovery.ServiceType.CLUSTERIP);
+ //       KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(masterUrl);
 
-        Multimap<String,URL> servicesMultimap = kubernetesServiceDiscovery.listServices();
+        JSONObject services = kubernetesServiceDiscovery.listServices();
 
         System.out.println();
         System.out.println();
 
-        for(Map.Entry<String,URL> pair: servicesMultimap.entries()){
-            System.out.println(pair.getKey() + "  =  " + pair.getValue());
-        }
+        System.out.println(services);
+
 
     }
 
