@@ -11,7 +11,7 @@
 {
   "services" : [
     {
-      "service": "s1",
+      "serviceName": "s1",
       "ports": [
         {
           "port": "8080",
@@ -50,7 +50,7 @@
       ]
     },
     {
-      "service": "s2",
+      "serviceName": "s2",
       "ports": [
         {
           "port": "8080",
