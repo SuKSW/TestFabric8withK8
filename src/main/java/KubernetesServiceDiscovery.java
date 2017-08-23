@@ -1,4 +1,3 @@
-import com.google.common.collect.Multimap;
 import io.fabric8.kubernetes.api.model.EndpointAddress;
 import io.fabric8.kubernetes.api.model.EndpointSubset;
 import io.fabric8.kubernetes.api.model.Endpoints;
@@ -9,17 +8,15 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServiceSpec;
-import io.fabric8.kubernetes.client.Client;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import io.fabric8.openshift.client.OpenShiftClient;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.impl.SimpleLogger;
 
 import javax.xml.ws.Endpoint;
 import java.io.IOException;
@@ -99,9 +96,9 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
 
     private Config buildConfig(String globalEndpoint){
         kubeServDiscConfig = new KubeServiceDiscoveryConfig();
+        System.setProperty("kubernetes.auth.tryKubeConfig", "false");
+        System.setProperty("kubernetes.auth.tryServiceAccount", "true");
         if(kubeServDiscConfig.isInsidePod()){
-            System.setProperty("kubernetes.auth.tryKubeConfig", "false");
-            System.setProperty("kubernetes.auth.tryServiceAccount", "true");
             Config config = null;
             try {
                 config = new ConfigBuilder().withMasterUrl(globalEndpoint).withTrustCerts(true).withClientCertFile(kubeServDiscConfig.getClientCertLocation()).withOauthToken(new String(Files.readAllBytes(Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/token")))).build();
@@ -111,9 +108,6 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
             }
             return config;
         }else{
-            System.setProperty("kubernetes.auth.tryKubeConfig", "false");
-            System.setProperty("kubernetes.auth.tryServiceAccount", "true");
-
             //Using token - works
             //Can list services from any namespace since a cluster role was given
             Config config = new ConfigBuilder().withMasterUrl(globalEndpoint).withTrustCerts(true).withClientCertFile(kubeServDiscConfig.getClientCertLocation()).withOauthToken(kubeServDiscConfig.getServiceAccountToken()).build();
@@ -132,11 +126,11 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
 
 
     @Override
-    Multimap<String, URL> listServices() throws MalformedURLException{
+    JSONObject listServices() throws MalformedURLException{
         log.debug("Looking for services in all namespaces");
         try{
             ServiceList services = client.services().inAnyNamespace().list();
-            addServicesToHashMap(services, null);
+            addServicesToJson(services, null);
         }catch (KubernetesClientException e){
             e.printStackTrace();
         }
@@ -144,11 +138,11 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
     }
 
     @Override
-    Multimap<String, URL> listServices(String namespace) throws MalformedURLException{
+    JSONObject listServices(String namespace) throws MalformedURLException{
         log.debug("Looking for services in namespace "+namespace);
         try {
             ServiceList services = client.services().inNamespace(namespace).list();
-            addServicesToHashMap(services, namespace);
+            addServicesToJson(services, namespace);
         }catch (KubernetesClientException e){
             e.printStackTrace();
         }
@@ -156,11 +150,11 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
     }
 
     @Override
-    Multimap<String, URL> listServices(String namespace, HashMap<String, String> criteria) throws MalformedURLException{
+    JSONObject listServices(String namespace, HashMap<String, String> criteria) throws MalformedURLException{
         log.debug("Looking for services, with the specified labels, in namespace "+namespace);
         try{
             ServiceList services = client.services().inNamespace(namespace).withLabels(criteria).list();
-            addServicesToHashMap(services, namespace);
+            addServicesToJson(services, namespace);
         }catch (KubernetesClientException e){
             e.printStackTrace();
         }
@@ -168,11 +162,11 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
     }
 
     @Override
-    Multimap<String, URL> listServices(HashMap<String, String> criteria) throws MalformedURLException{
+    JSONObject listServices(HashMap<String, String> criteria) throws MalformedURLException{
         log.debug("Looking for services, with the specified labels, in all namespaces");
         try{
             ServiceList services = client.services().withLabels(criteria).list();
-            addServicesToHashMap(services,null);
+            addServicesToJson(services,null);
         }catch (KubernetesClientException e){
             e.printStackTrace();
         }
@@ -180,125 +174,116 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
     }
 
 
-    protected void addServicesToHashMap(ServiceList services, String namespace) throws MalformedURLException{
-        this.servicesMultimap.clear();
-        List<Service> serviceItems = services.getItems();
-        switch(serviceType){
-            case CLUSTERIP:
-                log.debug("ServiceType CLUSTERIP selected");
-                for (Service service : serviceItems) {
-                    if(service.getSpec().getType().equals("ClusterIP")){
-                        String serviceName = service.getMetadata().getName();
-                        ServiceSpec serviceSpec = service.getSpec();
-                        for (ServicePort servicePort : serviceSpec.getPorts()) {
-                            String protocol = servicePort.getName();
-                            if (protocol !=null && (protocol.equals("http")
-                                    || protocol.equals("https") || protocol.equals("ftp") || protocol.equals("irc"))) {
-                                URL serviceURL = new URL(protocol, serviceSpec.getClusterIP(), servicePort.getPort(), "");
-                                this.servicesMultimap.put(serviceName, serviceURL);
-                            }else if(log.isDebugEnabled()){
-                                log.debug("Service:"+serviceName+"  Namespace:"+service.getMetadata().getNamespace()+"  Port:"+servicePort.getPort()+"/"+servicePort.getProtocol()+"  app protocol not defined");
-                            }
-                        }
-                    }
-                }
-                break;
-            case NODEPORT:
-                log.debug("ServiceType NODEPORT selected");
-                for (Service service : serviceItems) {
-                    if(service.getSpec().getType().equals("NodePort")){
-                        for (ServicePort servicePort : service.getSpec().getPorts()) {
-                            URL serviceURL = findNodePortServiceURLsForAPort(namespace,service.getMetadata().getName(),servicePort);
-                            if (serviceURL == null){
-                                if(log.isDebugEnabled()) {
-                                    log.debug("Service:"+service.getMetadata().getName()+"  Namespace:"+service.getMetadata().getNamespace()+"  Port:"+servicePort.getPort()+"/"+servicePort.getProtocol());
-                                }
-                            }else {
-                                this.servicesMultimap.put(service.getMetadata().getName(), serviceURL);
-                            }
-                        }
-                    }
-                }
-                break;
-            case LOADBALANCER:
-                log.debug("ServiceType LOADBALANCER selected");
-                for (Service service : serviceItems) {
-                    if(service.getSpec().getType().equals("LoadBalancer")){
-                        String serviceName = service.getMetadata().getName();
-                        for (ServicePort servicePort : service.getSpec().getPorts()) {
-                            String protocol = servicePort.getName();    //kubernetes gives only tcp/udp but we need http/https
-                            if (protocol !=null && (protocol.equals("http")
-                                    || protocol.equals("https") || protocol.equals("ftp") || protocol.equals("irc"))) {
-                                LoadBalancerStatus loadBalancerStatus = service.getStatus().getLoadBalancer();
-                                Iterator<LoadBalancerIngress> ingressIterator = loadBalancerStatus.getIngress().iterator();
-                                if (ingressIterator.hasNext()) {
-                                    while (ingressIterator.hasNext()) {
-                                        URL serviceURL = new URL(protocol,ingressIterator.next().getIp(),servicePort.getPort(), "");
-                                        this.servicesMultimap.put(serviceName, serviceURL);
-                                    }
-                                }
-                            }else if(log.isDebugEnabled()){
-                                log.debug("Service:"+serviceName+"  Namespace:"+service.getMetadata().getNamespace()+"  Port:"+servicePort.getPort()+"/"+servicePort.getProtocol()+"  app protocol not defined");
-                            }
-                        }
-                    }
-                }
-                break;
-            case EXTERNALNAME:
-                log.debug("ServiceType EXTERNALNAME selected");
-                for (Service service : serviceItems) {
-                    if (service.getSpec().getType().equals("ExternalName")) {
-                        String externalName = (String) service.getSpec().getAdditionalProperties().get("externalName");
-                        URL serviceURL = new URL(kubeServDiscConfig.getExternalNameDefaultProtocol() + "://" + externalName);
-                        this.servicesMultimap.put(service.getMetadata().getName(), serviceURL);
-                    }
-                }
-                break;
-            case EXTERNALIP:    // Special case. Not managed by Kubernetes but the cluster administrator.
-                log.debug("ServiceType EXTERNALIP selected");
-                for (Service service : serviceItems) {
-                    String serviceName = service.getMetadata().getName();
-                    List<String> specialExternalIps = service.getSpec().getExternalIPs();
-                    for (String specialExternalIp : specialExternalIps) { //Not all services have them. Thus protocol checking is done afterwards.
-                        for (ServicePort servicePort : service.getSpec().getPorts()) {
-                            String protocol = servicePort.getName();    //kubernetes gives only tcp/udp but we need http/https
-                            if (protocol !=null && (protocol.equals("http")
-                                    || protocol.equals("https") || protocol.equals("ftp") || protocol.equals("irc"))) {
-                                URL serviceURL = new URL(protocol,specialExternalIp,servicePort.getPort(), "");
-                                this.servicesMultimap.put(service.getMetadata().getName(), serviceURL);
-                            }else if(log.isDebugEnabled()){
-                                log.debug("Service:"+serviceName+"  Namespace:"+service.getMetadata().getNamespace()+"  Port:"+servicePort.getPort()+"/"+servicePort.getProtocol()+"  app protocol not defined");
-                            }
-                        }
-                    }
-                }
-                break;
-        }
 
+    protected void addServicesToJson(ServiceList services, String filerNamespace) throws MalformedURLException {
+        JSONArray servicesJsonArray = new JSONArray();
+        List<Service> serviceItems = services.getItems();
+        for (Service service : serviceItems) {
+            String serviceName = service.getMetadata().getName();
+            ServiceSpec serviceSpec = service.getSpec();
+            JSONArray portsJsonArray = new JSONArray();
+            for (ServicePort servicePort : serviceSpec.getPorts()) {
+                String protocol = servicePort.getName();
+                if (protocol !=null && (protocol.equals("http") || protocol.equals("https") ||
+                                protocol.equals("ftp") || protocol.equals("irc"))) {
+                    JSONArray urlsJsonArray = createUrlsJsonArray(serviceName, protocol, filerNamespace,
+                            servicePort, service);
+                    portsJsonArray.put(createPortJsonObject(servicePort.getPort(),urlsJsonArray));
+                }else if(log.isDebugEnabled()){
+                    log.debug("Service:"+serviceName+"  Namespace:"+service.getMetadata().getNamespace()
+                            +"  Port:"+servicePort.getPort()+"/"+servicePort.getProtocol()
+                            +"  app protocol not defined");
+                }
+            }
+            servicesJsonArray.put(createServiceJsonObject(serviceName,portsJsonArray));
+        }
+        this.servicesJson = new JSONObject().put("services",servicesJsonArray);
     }
 
-    private URL findNodePortServiceURLsForAPort(String namespace, String serviceName, ServicePort servicePort){
+
+    private JSONArray createUrlsJsonArray(String serviceName, String protocol,
+                                          String filerNamespace, ServicePort servicePort,
+                                          Service service) throws MalformedURLException {
+        JSONArray urlsJsonArray = new JSONArray();
+        ServiceSpec serviceSpec = service.getSpec();
+        if(kubeServDiscConfig.isInsidePod()){
+            //ClusterIP Service
+            URL clusterIPServiceURL = new URL(protocol, serviceSpec.getClusterIP(), servicePort.getPort(), "");
+            urlsJsonArray.put(createUrlJsonObject("ClusterIP", clusterIPServiceURL));
+
+            //ExternalName Service - todo: check how the protocol works
+            if(serviceSpec.getType().equals("ExternalName")){
+                String externalName = (String)service.getSpec().getAdditionalProperties().get("externalName");
+                URL externalNameServiceURL = new URL(kubeServDiscConfig.getExternalNameDefaultProtocol() + "://" + externalName);
+                urlsJsonArray.put(createUrlJsonObject("ExternalName", externalNameServiceURL));
+            }
+        }
+        //NodePort Service
+        if(!service.getSpec().getType().equals("ClusterIP")) {
+            URL nodePortServiceURL = findNodePortServiceURLForAPort(filerNamespace, serviceName, servicePort);
+            if (nodePortServiceURL != null) {
+                urlsJsonArray.put(createUrlJsonObject("NodePort", nodePortServiceURL));
+            }
+        }
+        //LoadBlancer Service
+        if(service.getSpec().getType().equals("LoadBalancer")) {
+            List<LoadBalancerIngress> loadBalancerIngresses = service.getStatus().getLoadBalancer().getIngress();
+            if (!loadBalancerIngresses.isEmpty()) {
+                URL loadBalancerServiceURL = new URL(protocol,
+                        loadBalancerIngresses.get(0).getIp(), servicePort.getPort(), "");
+                urlsJsonArray.put(createUrlJsonObject("LoadBalancer", loadBalancerServiceURL));
+            } else if (log.isDebugEnabled()) {
+                log.debug("Service:" + serviceName + "  Namespace:" + service.getMetadata().getNamespace()
+                        + "  Port:" + servicePort.getPort() + "/" + servicePort.getProtocol()
+                        + "  has no loadbalancer ingresses available");
+            }
+        }
+        //ExternalName - Special case. Not managed by Kubernetes but the cluster administrator.
+        List<String> specialExternalIps = service.getSpec().getExternalIPs();
+        if (!specialExternalIps.isEmpty()) {
+            URL externalIpServiceURL = new URL(protocol, specialExternalIps.get(0),servicePort.getPort(), "");
+            urlsJsonArray.put(createUrlJsonObject("ExternalIP", externalIpServiceURL));
+        }
+        return urlsJsonArray;
+    }
+
+
+    private JSONObject createUrlJsonObject(String type, URL serviceUrl){
+        JSONObject nodePortUrlJsonObject = new JSONObject();
+        nodePortUrlJsonObject.put("type",type);
+        nodePortUrlJsonObject.put("url",serviceUrl);
+        return nodePortUrlJsonObject;
+    }
+
+    private JSONObject createServiceJsonObject(String serviceName, JSONArray ports){
+        JSONObject serviceJsonObject = new JSONObject();
+        serviceJsonObject.put("serviceName",serviceName);
+        serviceJsonObject.put("ports",ports);
+        return serviceJsonObject;
+    }
+
+    private JSONObject createPortJsonObject(int port, JSONArray urls){
+        JSONObject portJson = new JSONObject();
+        portJson.put("port",port);
+        portJson.put("urls",urls);
+        return portJson;
+    }
+
+    private URL findNodePortServiceURLForAPort(String filerNamespace, String serviceName,
+                                               ServicePort servicePort) throws MalformedURLException {
         URL url;
         String protocol = servicePort.getName();    //kubernetes gives only tcp/udp but we need http/https
-        if(protocol==null || (!protocol.equals("http")
-                && !protocol.equals("https") && !protocol.equals("ftp") && !protocol.equals("irc"))){
-            if(log.isDebugEnabled()){
-                log.debug("Service:"+serviceName+"  Port:"+servicePort.getPort()+"/"+servicePort.getProtocol()+"  app protocol not defined");
-            }
-            return null;
-        }
-        if(namespace==null){
+        if(filerNamespace==null){
             int nodePort = servicePort.getNodePort();
-            /*
-                Below, method ".inAnyNamespace()" did not support ".withName()". Therefore ".withField()" is used.
-                It returns a single item list which has the only endpoint created for the service.
-            */
-            Endpoints endpoint = client.endpoints().inAnyNamespace().withField("metadata.name",serviceName).list().getItems().get(0);
-
+            //Below, method ".inAnyNamespace()" did not support ".withName()". Therefore ".withField()" is used.
+            //It returns a single item list which has the only endpoint created for the service.
+            Endpoints endpoint = client.endpoints().inAnyNamespace()
+                    .withField("metadata.name",serviceName).list().getItems().get(0);
             List<EndpointSubset> endpointSubsets = endpoint.getSubsets();
-            if (endpointSubsets.isEmpty()) {  //no endpoints for the service
+            if (endpointSubsets.isEmpty()) {
                 if(log.isDebugEnabled()){
-                    log.debug("Service:"+serviceName+"  no endpoints found for the service. EndpointSubset list is empty");
+                    log.debug("Service:"+serviceName
+                            +"  no endpoints found for the service. EndpointSubset list is empty");
                 }
                 return null;
             }
@@ -308,29 +293,29 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
                 List<EndpointAddress> endpointAddresses = endpointSubset.getAddresses();
                 if (endpointAddresses.isEmpty()) {  //no endpoints for the service
                     if(log.isDebugEnabled()){
-                        log.debug("Service:"+serviceName+" EndpointSubsetIndex:"+endpointSubsetIndex+"  no endpoints found for the service. EndpointAddress list is empty.");
+                        log.debug("Service:"+serviceName+" EndpointSubsetIndex:"+endpointSubsetIndex
+                                +"  no endpoints found for the service. EndpointAddress array is empty.");
                     }
                     return null;
                 }
                 for (EndpointAddress endpointAddress : endpointAddresses) {
                     String podname = endpointAddress.getTargetRef().getName();
-                    Pod pod = client.pods().inAnyNamespace().withField("metadata.name",podname).list().getItems().get(0); // same as comment 11 lines above
+                    Pod pod = client.pods().inAnyNamespace()
+                            .withField("metadata.name",podname).list().getItems().get(0);
                     try {
                         url = new URL(protocol, pod.getStatus().getHostIP(), nodePort, "");
                         return url;
                     } catch (NullPointerException e) { //no pods available for this address
                         if(log.isDebugEnabled()){
-                            log.debug("Service:"+serviceName+"  no pod available for the service");
+                            log.debug("Service:"+serviceName +"  Pod "+podname+"  not available");
                         }
-                    } catch (MalformedURLException e) {
-                        e.printStackTrace();
                     }
                 }
             }
             return null;
         } else {    // namespace given
             int portNumber = servicePort.getNodePort();
-            Endpoints endpoint = client.endpoints().inNamespace(namespace).withName(serviceName).get();
+            Endpoints endpoint = client.endpoints().inNamespace(filerNamespace).withName(serviceName).get();
             List<EndpointSubset> endpointSubsets = endpoint.getSubsets();
             if (endpointSubsets.isEmpty()) {  //no endpoints for the service
                 if(log.isDebugEnabled()){
@@ -348,7 +333,7 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
                 }
                 for (EndpointAddress endpointAddress : endpointAddresses) {
                     String podname = endpointAddress.getTargetRef().getName();
-                    Pod pod = client.pods().inNamespace(namespace).withName(podname).get();
+                    Pod pod = client.pods().inNamespace(filerNamespace).withName(podname).get();
                     try {
                         url = new URL(protocol, pod.getStatus().getHostIP(), portNumber, "");
                         return url;
@@ -356,8 +341,6 @@ public class KubernetesServiceDiscovery extends ServiceDiscovery {
                         if(log.isDebugEnabled()){
                             log.debug("Service:"+serviceName+"  no pod available for the service");
                         }
-                    } catch (MalformedURLException e) {
-                        e.printStackTrace();
                     }
                 }
             }
