@@ -9,7 +9,7 @@ paths:
       produces: "application/json"
       x-wso2-curl: "curl -k -H \"Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\" -H \"Content-Type: application/json\" -X POST -d @data.json \"https://127.0.0.1:9443/api/am/publisher/v1.0/endpoints/discoverable-services\""
       x-wso2-request: "POST https://127.0.0.1:9443/api/am/publisher/v1.0/endpoints/discoverable-services\nAuthorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\nContent-Type: application/json\n\n{\n\"globalEndpointUrl\": \"https://195.172.91.121:8443/\"\n}"
-      x-wso2-response: "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\"count\":3,\"list\":[{\"serviceName\":\"publicNewsFeedService\",\"url\":\"http://195.172.91.131:31233\"},{\"serviceName\":\"aCommonlyUsedMailingService\",\"url\":\"http://195.172.91.132:31233\"},{\"serviceName\":\"aPrivateDBAccessingService\",\"url\":\"http://195.172.91.141:31133\"}]}"
+      x-wso2-response:
       #security:
       #  - OAuth2Security:
       #    - apim:api_create
@@ -64,7 +64,6 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/DiscoveredService'
-
 #-----------------------------------------------------
 # The Discovered Service Endpoint resource
 #-----------------------------------------------------
@@ -115,6 +114,9 @@ definitions:
           description: |
             URL of the service endpoint together with its port.
           example: "http://123.123.23.23:8080"
+
+
+
 
 #-----------------------------------------------------
 # The Error resource
