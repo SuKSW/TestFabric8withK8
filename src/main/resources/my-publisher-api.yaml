@@ -1,19 +1,23 @@
 paths:
   /endpoints/discoverable-services:
+
+  #-----------------------------------------------------
+  # Retrieve a list of service endpoints of a cluster
+  #-----------------------------------------------------
     post:
       consumes: "application/json"
       produces: "application/json"
-      x-wso2-curl: "curl -k -H \"Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\" -H \"Content-Type: application/json\" -X POST -d @data.json \"https://127.0.0.1:9443/api/am/publisher/v1.0/endpoints/service-discovery\""
-      x-wso2-request: "POST https://127.0.0.1:9443/api/am/publisher/v1.0/endpoints/service-discovery\nAuthorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\nContent-Type: application/json\n\n{\n\"globalEndpointUrl\": \"https://195.172.91.121:8443/\"\n}"
+      x-wso2-curl: "curl -k -H \"Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\" -H \"Content-Type: application/json\" -X POST -d @data.json \"https://127.0.0.1:9443/api/am/publisher/v1.0/endpoints/discoverable-services\""
+      x-wso2-request: "POST https://127.0.0.1:9443/api/am/publisher/v1.0/endpoints/discoverable-services\nAuthorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\nContent-Type: application/json\n\n{\n\"globalEndpointUrl\": \"https://195.172.91.121:8443/\"\n}"
       x-wso2-response: "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\"count\":3,\"list\":[{\"serviceName\":\"publicNewsFeedService\",\"url\":\"http://195.172.91.131:31233\"},{\"serviceName\":\"aCommonlyUsedMailingService\",\"url\":\"http://195.172.91.132:31233\"},{\"serviceName\":\"aPrivateDBAccessingService\",\"url\":\"http://195.172.91.141:31133\"}]}"
-      security:
-        - OAuth2Security:
-          - apim:api_create
-      summary: Get the list of endpoints after Service discovery
+      #security:
+      #  - OAuth2Security:
+      #    - apim:api_create
+      summary: Get a list of service endpoints of a cluster - service discovery
       description: |
-        This operation can be used to discover services using a given url of a existing cluster eg.Kubernetes.
+        This operation can be used to discover services, using a given url of the cluster. Eg.Kubernetes - master url
       parameters:
-        - $ref: '#/parameters/globalEndpoint'
+        - $ref: '#/parameters/masterEndpoint'
       tags:
         - Endpoint (Collection)
       responses:
@@ -22,7 +26,7 @@ paths:
             OK.
             Successful response with the discovered services list as an entity in the body.
           schema:
-            $ref: '#/definitions/DiscoveredServiceEndPointsList'
+            $ref: '#/definitions/DiscoveredServices'
           headers:
             Content-Type:
               description: |
@@ -34,19 +38,13 @@ paths:
             Invalid request (or validation error)
           schema:
             $ref: '#/definitions/Error'
-        412:
-          description: |
-            Precondition Failed.
-            The request has not been performed because one of the preconditions is not met.
-          schema:
-            $ref: '#/definitions/Error'
+
 
 parameters:
 
-# Global Endpoint URL for service discovery
-# Specified as a value in json
-  globalEndpoint:
-    name: globalEndpoint
+# Master Endpoint URL for service discovery
+  masterEndpoint:
+    name: masterEndpoint
     in: body
     description: |
       URL to discover services.
@@ -59,35 +57,64 @@ definitions:
 #-----------------------------------------------------
 # The Discovered Services List resource
 #-----------------------------------------------------
-  DiscoveredServiceEndPointsList:
-    title: Discovered Service Endpoints List
+  DiscoveredServices:
+    title: Discovered Services of the Cluster
     properties:
-      count:
-        type: integer
-        description: |
-          Number of Service EndPoints returned.
-        example: 3
-      list:
+      services:
         type: array
         items:
-          $ref: '#/definitions/DiscoveredServiceEndPoint'
+          $ref: '#/definitions/DiscoveredService'
 
 #-----------------------------------------------------
 # The Discovered Service Endpoint resource
 #-----------------------------------------------------
-  DiscoveredServiceEndPoint :
-      title: Discovered Service Endpoint
+  DiscoveredService :
+    title: A Discovered Service
+    properties:
+      serviceName:
+        type: string
+        description: |
+          Name of the service.
+        example: "publicNewsFeedService"
+      ports:
+        type: array
+        description: |
+          Ports of the service containing the URLs.
+        items:
+          $ref: '#/definitions/DiscoveredServicePort'
+#-----------------------------------------------------
+# The Discovered Service Endpoint Port resource
+#-----------------------------------------------------
+  DiscoveredServicePort:
+    title: Discovered Service's Port withits URLs
       properties:
-        serviceName:
+        urls:
+          type: array
+          description: |
+            URLs.
+          items:
+            $ref: '#/definitions/DiscoveredServiceURL'
+        port:
+          type: int
+          description: |
+            Port number of the service.
+          example: 8080
+#-----------------------------------------------------
+# The Discovered Service Endpoint URL resource
+#-----------------------------------------------------
+  DiscoveredServiceURL:
+    title: Discovered Service's Port withits URLs
+      properties:
+        type:
           type: string
           description: |
-            Name of the service. Here the same name can repeat with multiple URLs.
-          example: "publicNewsFeedService"
-        serviceUrl:
+            Type of the URL
+          example: "NodePort"
+        url:
           type: string
           description: |
-            URL of the service
-          example: "http://195.172.91.131:31233\\"
+            URL of the service endpoint together with its port.
+          example: "http://123.123.23.23:8080"
 
 #-----------------------------------------------------
 # The Error resource

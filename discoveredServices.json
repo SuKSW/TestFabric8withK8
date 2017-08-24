@@ -9,7 +9,7 @@
 //    s1		      8443	Loadbalancer		http://my.load.balancer:8444
 
 {
-  "services" : [
+  "discoveredServices" : [
     {
       "serviceName": "s1",
       "ports": [
