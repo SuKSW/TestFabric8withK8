@@ -1,0 +1,21 @@
+					   To create everything within the namespace
+------------------------------------------------------------------------------------
+kubectl --namespace=my-project create -f sa.yaml
+
+
+
+					To change the namespace we are currently in
+------------------------------------------------------------------------------------
+kubectl config set-context $(kubectl config current-context) --namespace=my-project
+
+
+
+					    To get the name of the secret of the SA
+------------------------------------------------------------------------------------
+kubectl get sa my-service-discovery -o=yaml
+
+
+								   To get the token
+------------------------------------------------------------------------------------
+kubectl describe secret my-service-discovery-token-7m64c
+(here my-service-discovery-token-7m64c is the name of the secret)

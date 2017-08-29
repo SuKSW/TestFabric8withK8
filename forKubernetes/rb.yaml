@@ -1,0 +1,13 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: sd-role-to-my-sdsa
+  namespace: my-project
+subjects:
+  - kind: ServiceAccount
+    name: my-service-discovery
+    namespace: my-project
+roleRef:
+  kind: Role
+  name: kube-ser-disc
+  apiGroup: "rbac.authorization.k8s.io"

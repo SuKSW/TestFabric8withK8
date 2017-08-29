@@ -19,10 +19,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
         System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "DEBUG");
 
-        URL masterUrl = new URL("https","....", 8443,"/" );
-        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(masterUrl,
-                 KubernetesServiceDiscovery.ServiceType.CLUSTERIP);
- //       KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery(masterUrl);
+        KubernetesServiceDiscovery kubernetesServiceDiscovery = new KubernetesServiceDiscovery();
 
         JSONObject services = kubernetesServiceDiscovery.listServices();
 

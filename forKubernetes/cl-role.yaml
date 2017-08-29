@@ -1,0 +1,9 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1 #changeThis
+metadata:
+  # "namespace" omitted since ClusterRoles are not namespaced
+  name: kube-ser-disc
+rules:
+- resources: ["services", "pods", "endpoints"]
+  verbs: ["get", "watch", "list"]
+  apiGroups: ["*"]

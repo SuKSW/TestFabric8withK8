@@ -9,6 +9,8 @@ import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServiceSpec;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import io.fabric8.openshift.client.OpenShiftClient;
@@ -26,25 +28,13 @@ import java.util.HashMap;
 import java.util.List;
 
 
-class KubernetesServiceDiscovery extends ServiceDiscovery {
+class KubernetesServiceDiscovery  extends ServiceDiscovery{
     /*
-    *----------------------------------------------------------------
-    * For service type "A", the url ip retrieved will also be
-    * of IP type "A"
-    *
-    * eg. service type - NodePort
-    *     IP type      - Host Ip of a pod
-    *
-    *     Will not show Nodeport type IPs of LoadBalancer services or ExternalName services either
-    *-----------------------------------------------------------------
-    * Same service name can repeat with mulitiple service ports
-    * due to having different protocols for differents ports
-    * Therefore using ArrayListMultimap
     *
     * ----------------------------------------------------------------
     * for a service to be discovred
     * port name must be : http/https
-    *
+    *   //todo ---> if 443 https
     *
     *-----------------------------------------------------------------
     * viewing only service,endpoints,pods so to avoid viewing nodes
@@ -56,55 +46,38 @@ class KubernetesServiceDiscovery extends ServiceDiscovery {
     private KubeServiceDiscoveryConfig kubeServDiscConfig;
 
 
-    private OpenShiftClient client;
-    //private KubernetesClient client;
-
-    private ServiceType serviceType;
-    private static ServiceType defaultServiceType = ServiceType.LOADBALANCER;
-
-    public enum ServiceType {
-        CLUSTERIP, NODEPORT, LOADBALANCER, EXTERNALNAME, EXTERNALIP
-    }
+    //private OpenShiftClient client;
+    private KubernetesClient client;
 
 
-    KubernetesServiceDiscovery(URL masterUrl) throws Exception {
-        super(masterUrl);
+    KubernetesServiceDiscovery() throws Exception {
         try {
-            this.client = new DefaultOpenShiftClient(buildConfig(this.masterUrl));
-            //this.client = new DefaultKubernetesClient(buildConfig(this.masterUrl));
-            this.serviceType = defaultServiceType;//Todo
+            //this.client = new DefaultOpenShiftClient(buildConfig());
+            this.client = new DefaultKubernetesClient(buildConfig());
         } catch (KubernetesClientException e) {
             e.printStackTrace();
         }
 
     }
 
-    KubernetesServiceDiscovery(URL masterUrl, ServiceType serviceType) throws Exception {
-        super(masterUrl);
-        try {
-            this.client = new DefaultOpenShiftClient(buildConfig(this.masterUrl));
-            //this.client = new DefaultKubernetesClient(buildConfig(this.masterUrl));
-            this.serviceType = serviceType;
-        } catch (KubernetesClientException e) {
-            e.printStackTrace();
-        }
-    }
 
-    private Config buildConfig(URL masterUrl){
+    private Config buildConfig(){
         kubeServDiscConfig = new KubeServiceDiscoveryConfig();
-        System.setProperty("kubernetes.auth.tryKubeConfig", "true");
+        System.setProperty("kubernetes.auth.tryKubeConfig", "false");
         System.setProperty("kubernetes.auth.tryServiceAccount", "true");
-        ConfigBuilder configBuilder = new ConfigBuilder().withMasterUrl(masterUrl.toString()).withTrustCerts(true).withClientCertFile(kubeServDiscConfig.getClientCertLocation());
+        ConfigBuilder configBuilder = new ConfigBuilder().withMasterUrl(kubeServDiscConfig.getMasterUrl()).withTrustCerts(true).withClientCertFile(kubeServDiscConfig.getClientCertLocation());
         Config config;
         if(kubeServDiscConfig.isInsidePod()){
-            config = new ConfigBuilder().withMasterUrl(masterUrl.toString()).build();
-//            try {
-//                config = configBuilder.withOauthToken(new String(Files.readAllBytes(Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/token")))).build();
-//            } catch (IOException e) {
-//                log.error("Token file not found");
-//                e.printStackTrace();
-//            }
+           // config = new ConfigBuilder().withMasterUrl(masterUrl.toString()).build();
+            try {
+                config = configBuilder.withOauthToken(new String(Files.readAllBytes(Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/token")))).build();
+            } catch (IOException e) {
+                config = null;
+                log.error("Token file not found");
+                e.printStackTrace();
+            }
         }else{
+            //config = new ConfigBuilder().withMasterUrl(kubeServDiscConfig.masterUrl).build();
             config = configBuilder.withOauthToken(kubeServDiscConfig.getServiceAccountToken()).build();
         }
         return config;
@@ -160,7 +133,7 @@ class KubernetesServiceDiscovery extends ServiceDiscovery {
     }
 
 
-    Boolean endpointsAvailable; //when false, will not look for NodePort urls for the remaining ports.
+    private Boolean endpointsAvailable; //when false, will not look for NodePort urls for the remaining ports.
 
     private void addServicesToJson(ServiceList services, String filerNamespace) throws MalformedURLException {
         JSONArray servicesJsonArray = new JSONArray();
@@ -194,16 +167,16 @@ class KubernetesServiceDiscovery extends ServiceDiscovery {
                                           String filerNamespace, ServicePort servicePort,
                                           Service service) throws MalformedURLException {
         JSONArray urlsJsonArray = new JSONArray();
-        ServiceSpec serviceSpec = service.getSpec();//todo ports first
+        ServiceSpec serviceSpec = service.getSpec();
         if(kubeServDiscConfig.isInsidePod()){
             //ClusterIP Service
             URL clusterIPServiceURL = new URL(protocol, serviceSpec.getClusterIP(), servicePort.getPort(), "");
             urlsJsonArray.put(createUrlJsonObject("ClusterIP", clusterIPServiceURL));
 
-            //ExternalName Service - todo: check how the protocol works
+            //ExternalName Service
             if(serviceSpec.getType().equals("ExternalName")){
                 String externalName = (String)service.getSpec().getAdditionalProperties().get("externalName");
-                URL externalNameServiceURL = new URL(kubeServDiscConfig.getExternalNameDefaultProtocol() + "://" + externalName);
+                URL externalNameServiceURL = new URL(protocol + "://" + externalName);
                 urlsJsonArray.put(createUrlJsonObject("ExternalName", externalNameServiceURL));
             }
         }

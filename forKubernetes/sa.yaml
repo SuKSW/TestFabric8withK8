@@ -1,0 +1,41 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: my-project
+
+
+---
+
+kind: ServiceAccount
+apiVersion: v1
+metadata: 
+  name: my-service-discovery
+  
+
+---
+
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  namespace: my-project
+  name: kube-ser-disc
+rules:
+  - resources: ["services", "pods", "endpoints"]
+    verbs: ["get", "watch", "list"]
+    apiGroups: ["*"]
+---
+
+
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: sd-role-to-my-sdsa
+  namespace: my-project
+subjects:
+  - kind: ServiceAccount
+    name: my-service-discovery
+    namespace: my-project
+roleRef:
+  kind: Role
+  name: kube-ser-disc
+  apiGroup: "rbac.authorization.k8s.io"

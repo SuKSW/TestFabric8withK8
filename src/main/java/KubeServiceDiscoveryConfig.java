@@ -4,12 +4,18 @@ import io.fabric8.openshift.client.OpenShiftClient;
 
 public class KubeServiceDiscoveryConfig {
 
-    private static Boolean insidePod   = true;
+    private Boolean insidePod   = false;
 
-    private static String clientCertLocation = System.getProperty("user.dir")+"/src/main/resources/ca.crt";
-    private static String serviceAccountToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJteXByb2plY3QiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlY3JldC5uYW1lIjoic2VyZGktdG9rZW4tY3BkZnYiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoic2VyZGkiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI1NzgxNzkwMy04MjM0LTExZTctOWU2Zi1iYTI2YjVlYTlhODkiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6bXlwcm9qZWN0OnNlcmRpIn0.JopXXkRhTeqWNN6yBosJhaxs2nU9uCZBW_ttnxSYz3pM93AcNAIGvLcrtmbrmEO6nlxvPK-s_qfXk2oJESJNm7Sje-7jvhgwGQdBizy06AlM3AM5cr2L7ap6ri7OQX-B4yvFyIAAIDMC4rifiYijXClV2JPo6S_gXHfwV7kOlJI3KjDwyWEwOjgXMK00ewJ1Xnd-rpTJgvqJPuEer2hbXRZrp2JoMa-fzv219c7l3LuVx7ojLo9ElY9iDbox8VvV1lBRxMJuitC2L8aE0m_jtSAC5Bum9zaOms2OK4T6uyr6HhfpPgLcZoWX1wpAXAOfsmoS2BPA3Ar1LXflT5SLbA";
+    private String masterUrl = "https://....:8443/";
+    private String clientCertLocation = System.getProperty("user.dir")+"/src/main/resources/ca.crt";
+    //openshift
+    //private String serviceAccountToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJteXByb2plY3QiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlY3JldC5uYW1lIjoic2VyZGktdG9rZW4tY3BkZnYiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoic2VyZGkiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI1NzgxNzkwMy04MjM0LTExZTctOWU2Zi1iYTI2YjVlYTlhODkiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6bXlwcm9qZWN0OnNlcmRpIn0.JopXXkRhTeqWNN6yBosJhaxs2nU9uCZBW_ttnxSYz3pM93AcNAIGvLcrtmbrmEO6nlxvPK-s_qfXk2oJESJNm7Sje-7jvhgwGQdBizy06AlM3AM5cr2L7ap6ri7OQX-B4yvFyIAAIDMC4rifiYijXClV2JPo6S_gXHfwV7kOlJI3KjDwyWEwOjgXMK00ewJ1Xnd-rpTJgvqJPuEer2hbXRZrp2JoMa-fzv219c7l3LuVx7ojLo9ElY9iDbox8VvV1lBRxMJuitC2L8aE0m_jtSAC5Bum9zaOms2OK4T6uyr6HhfpPgLcZoWX1wpAXAOfsmoS2BPA3Ar1LXflT5SLbA";
+    //kubernetes
+    private String serviceAccountToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJteS1wcm9qZWN0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6Im15LXNlcnZpY2UtZGlzY292ZXJ5LXRva2VuLTdtNjRjIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6Im15LXNlcnZpY2UtZGlzY292ZXJ5Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiNjdlNjFiMWQtOGJkMS0xMWU3LTkyOGEtMDgwMDI3NTVmMDgxIiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Om15LXByb2plY3Q6bXktc2VydmljZS1kaXNjb3ZlcnkifQ.Z3QaL4OIkLtuD32XtY183b8StQNOOI6uUcJi_9VQViJGtNhK7utjV-Q9nu3GVeD4Z7GwCvIH6F0hOwZGjdhNDIbUBh5mnNbzcxcX57RxrVLunymsuCZ2zurAeKpeXYwwlfeyHJfysOBXOFCIP4USlRmDoM8YcRjLsYS47fKlf4iCbzcPxPPlMkmQOMo_k0q_c03BRXKm-3d6mutokhOMoSvx4_9B1eMnTTRnz4k7SlNhHfNfSyv_FwzBbQLX7leb1ep3gmQ0nSLaEllBh5htkZXAGpMPsZvxRcZK1c9xj_0mpLiSYN8Rn9GLM9Fd6m2OPKAStKzeNCu9O3vBp1KNdg";
 
-    private static String externalNameDefaultProtocol = "http";
+    public String getMasterUrl() {
+        return masterUrl;
+    }
 
     Boolean isInsidePod() {
         return insidePod;
@@ -21,9 +27,5 @@ public class KubeServiceDiscoveryConfig {
 
     String getServiceAccountToken() {
         return serviceAccountToken;
-    }
-
-    static String getExternalNameDefaultProtocol() {
-        return externalNameDefaultProtocol;
     }
 }
